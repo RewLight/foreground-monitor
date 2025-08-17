@@ -175,7 +175,7 @@ export default defineComponent({
         } catch (err) {
           console.error(err)
           // 在Snackbar中显示具体的错误信息
-          snackbarText.value = `获取状态失败: ${err.message || '未知错误'}`
+          snackbarText.value = `获取状态失败`
           snackbarColor.value = 'red'
           snackbar.value = true // 显示 Snackbar
         }
