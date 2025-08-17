@@ -27,10 +27,15 @@ $ yarn dev
 ```bash
 $ # Make sure that you have `aapt2` on your device.
 $ # Also, do not forget to connect your device via adb. (make sure they're prepared!)
-$ # Scripts are under `script/`.
+$ # Scripts are under `script/`. Set up venv before interacting with python.🐍
 $ cd /script
 $ python -m venv env
 $ source /env/bin/activate
+$ # If you only use `foreground_client.py`, requirements.txt is enough;
+$ # but we're here for dev, so we also need Flask.
+$ pip install -r dev-requirements.txt
+$ # Edit .env for yourself; it's out of the box ready for me.
+$ vim .env
 $ python devtest_server.py&; python foreground_client.py
 ```
 
