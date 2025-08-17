@@ -22,6 +22,7 @@ $ yarn dev
 
 ```bash
 $ # Make sure that you have `aapt2` on your device.
+$ # Also, do not forget to connect your device via adb. (make sure they're prepared!)
 $ pip install websockets
 $ python foreground_ws.py
 ```
