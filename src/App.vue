@@ -13,7 +13,7 @@
         </v-btn>
       </template>
 
-      <v-toolbar-title>前台应用监控</v-toolbar-title>
+      <v-toolbar-title>春茶在干什么</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <v-chip
@@ -152,31 +152,39 @@ export default defineComponent({
     })
 
     onMounted(() => {
-      const API_BASE = import.meta.env.VITE_INGEST_BASE || '/api'
-
       const fetchStatus = async () => {
         try {
-          const res = await fetch(`${API_BASE}/status`)
+          const res = await fetch('/api/current-status?machine=chuncha-pad&limit=1')
           if (!res.ok) throw new Error(res.statusText)
+
           const data = await res.json()
-          status.value = data
-          if (data?.appLabelName && appName.value !== data.appLabelName) {
-            appName.value = data.appLabelName
-            addHistory(data.appLabelName)
+
+          if (data.length > 0) {
+            const appData = data[0]
+            if (appName.value !== appData.app) {
+              appName.value = appData.app
+              addHistory(appData.app)
+
+              // 更新状态信息
+              status.value.lastUpdateTimestamp = new Date(appData.access_time).getTime() / 1000
+              flash.value = true
+              setTimeout(() => (flash.value = false), 300) // 3秒后停止闪烁
+            }
           }
+
         } catch (err) {
           console.error(err)
-          snackbarText.value = '获取状态失败'
+          // 在Snackbar中显示具体的错误信息
+          snackbarText.value = `获取状态失败: ${err.message || '未知错误'}`
           snackbarColor.value = 'red'
-          snackbar.value = true
+          snackbar.value = true // 显示 Snackbar
         }
       }
 
       fetchStatus()
-      setInterval(fetchStatus, 5000)
-    })
+      setInterval(fetchStatus, 5000) // 每隔5秒重新请求
 
-    watch(appName, () => { flash.value = true; setTimeout(() => (flash.value=false), 300) })
+    })
 
     return {
       appName, history, flash, historyCard, getAppColor,
@@ -206,9 +214,9 @@ body, html, #app { font-family: 'Rubik','Noto Sans SC',sans-serif; }
   position: absolute; left:0; right:0; top:0; bottom:0;
   display:flex; align-items:center; justify-content:center;
 }
-.fab-icon-enter-from { transform: scale(0.6) rotate(-90deg); opacity:0; }
-.fab-icon-enter-to { transform: scale(1) rotate(0deg); opacity:1; }
-.fab-icon-leave-from { transform: scale(1) rotate(0deg); opacity:1; }
-.fab-icon-leave-to { transform: scale(0.6) rotate(90deg); opacity:0; }
-</style>
 
+.fab-icon-enter-from { transform: scale(0.6) rotate(-90deg); opacity:0; }
+  .fab-icon-enter-to { transform: scale(1) rotate(0deg); opacity:1; }
+  .fab-icon-leave-from { transform: scale(1) rotate(0deg); opacity:1; }
+  .fab-icon-leave-to { transform: scale(0.6) rotate(90deg); opacity:0; }
+</style>

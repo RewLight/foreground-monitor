@@ -16,21 +16,23 @@ from rich.traceback import install as install_rich_traceback
 # =====================
 install_rich_traceback(show_locals=True)
 console = Console()
-load_dotenv()
+load_dotenv(".env.local")  # 加载 .env.local 文件中的配置
 
 CHECK_INTERVAL = 2  # 每 2 秒检测前台应用
 FORCE_UPLOAD_INTERVAL = 10  # 每 10 秒强制上传一次
 
+# 从 .env.local 文件读取配置
 INGEST_URL = os.environ.get("INGEST_URL")
-PORT = int(os.environ.get("PORT", 8000))
-AUTH_TOKEN = os.environ.get("AUTH_TOKEN")
+API_TOKEN = os.environ.get("API_TOKEN")
+machine_id = os.environ.get("machine_id")
 
-# 如果没有写完整 INGEST_URL，可以用 PORT 拼接
-if INGEST_URL is None:
-    INGEST_URL = f"http://localhost:{PORT}/api/ingest"
-
-if not AUTH_TOKEN:
-    raise RuntimeError("请在 .env 文件或环境变量中设置 AUTH_TOKEN")
+# 如果没有配置 INGEST_URL 或 API_TOKEN，抛出错误
+if not INGEST_URL:
+    raise RuntimeError("请在 .env 文件中设置 INGEST_URL")
+if not API_TOKEN:
+    raise RuntimeError("请在 .env 文件中设置 API_TOKEN")
+if not machine_id:
+    raise RuntimeError("请在 .env 文件中设置 machine_id")
 
 
 # =====================
@@ -122,16 +124,14 @@ async def get_foreground_app() -> tuple[str, str]:
 # =====================
 async def upload_status(payload: dict):
     headers = {
-        "Authorization": f"Bearer {AUTH_TOKEN}",
+        "Authorization": f"Bearer {API_TOKEN}",
         "Content-Type": "application/json",
     }
     try:
         res = requests.post(INGEST_URL, json=payload, headers=headers, timeout=5)
         now_str = datetime.now().strftime("%H:%M:%S")
         if res.status_code == 200:
-            console.print(
-                f"[{now_str}] 上传成功: {payload['appLabelName']}", style="green"
-            )
+            console.print(f"[{now_str}] 上传成功: {payload['app_name']}", style="green")
         else:
             console.print(
                 f"[{now_str}] 上传失败: {res.status_code} {res.text}", style="red"
@@ -159,9 +159,10 @@ async def main():
         app_label_name, app_package_name = await get_foreground_app()
         now_ts = int(datetime.now().timestamp())
         payload = {
-            "appLabelName": app_label_name,
-            "appPackageName": app_package_name,
-            "lastUpdateTimestamp": now_ts,
+            "machine": machine_id,  # 添加 machine_id
+            "window_title": app_label_name,  # 使用应用标签作为 window_title
+            "app_name": app_label_name,  # 使用应用标签作为 app_name
+            "event_time": datetime.now().isoformat(),  # 使用 ISO8601 格式的时间
         }
 
         should_upload = (

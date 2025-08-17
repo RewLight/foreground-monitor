@@ -35,8 +35,8 @@ export default defineConfig({
       filename: 'sw.js',                  // SW 文件名
       injectRegister: 'auto',
       registerType: 'autoUpdate',
-      manifest: {
-        name: '前台应用监控',
+    manifest: {
+      name: '前台应用监控',
         short_name: '前台监控',
         description: '监控设备前台应用状态',
         theme_color: '#1976D2',
@@ -87,7 +87,15 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('src', import.meta.url)) },
     extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
   },
-  server: { port: 3000 },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'https://shijian.lyxmb.com',
+        changeOrigin: true
+      }
+    }
+  },
   css: {
     preprocessorOptions: {
       sass: { api: 'modern-compiler' },
