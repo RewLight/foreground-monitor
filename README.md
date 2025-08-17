@@ -1,4 +1,9 @@
-# foreground monitor
+# foreground monitor 
+
+
+> [!IMPORTANT]  
+> it's generated with ChatGPT, which sucks.  
+> Don't bully me for the sh*t code.  
 
 Nothing much for the description, just a toy for fun.
 
@@ -16,7 +21,8 @@ $ yarn dev
 ### Background(python)
 
 ```bash
-$ pip install webscokets
+$ # Make sure that you have `aapt2` on your device.
+$ pip install websockets
 $ python foreground_ws.py
 ```
 
