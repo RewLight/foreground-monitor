@@ -11,6 +11,7 @@
 5. 点击进入编辑页面，修改 `INGEST_URL`, `API_TOKEN`, `machine-id` 的值
 6. **保存**并运行
 7. 在你觉得能看效果的地方看看效果
+8. !! **务必给 AutoX.js 设置忽略电量优化等**（请自行查找相关操作）
 
 ## 参考
 [BlueYeeeee/SpyYourDesktop](https://github.com/BlueYeeeee/SpyYourDesktop)
