@@ -13,7 +13,7 @@
      2. 激活 Shizuku （[文档](https://shizuku.rikka.app/zh-hans/guide/setup/)）
      3. 在 AutoX.js 的侧边栏中，打开 `Shizuku 权限` 的开关
      4. 无需手动打开无障碍权限，脚本将在首次运行时自动授予无障碍权限
-   - 仅适用无障碍权限（**不推荐**，功能缺失）
+   - 仅使用无障碍权限（**不推荐**，功能缺失）
      1. 在 AutoX.js 的侧边栏中打开 `无障碍权限` 的开关
 5. 将 foreground_client.js 导入 AutoX.js
 6. 点击进入编辑页面，修改 `INGEST_URL`, `API_TOKEN`, `MACHINE_ID` 的值
