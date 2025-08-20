@@ -61,9 +61,10 @@ function showConfigDialog(currentConfig) {
     var newConfig = null;
     var dialog = dialogs.build({
         title: "配置设置",
-        positive: "保存",
-        negative: "保留当前配置",
-        neutral: "退出",
+        content: "请输入配置信息",
+        positive: "保存并启动",
+        negative: "退出",
+        neutral: "使用当前配置",
         autoDismiss: false,
         customView: 
             <vertical padding="16">
@@ -99,11 +100,11 @@ function showConfigDialog(currentConfig) {
             toast("保存配置失败");
         }
     }).on("negative", function(dialog) {
-        newConfig = currentConfig;
+        newConfig = null;
         dialog.dismiss();
     }).on("neutral", function(dialog) {
+        newConfig = currentConfig;
         dialog.dismiss();
-        exit();
     }).show();
     
     // 等待对话框关闭
@@ -130,7 +131,7 @@ function initializeConfig() {
         "当前配置状态: " + configStatus + "\n\n" +
         "设备ID: " + config.MACHINE_ID + "\n" +
         "上传地址: " + config.INGEST_URL + "\n" +
-        "API Token: " + (config.API_TOKEN ? "***" + config.API_TOKEN.slice(-6) : "未设置") + "\n" +
+        "API Token: " + (config.API_TOKEN ? "***" + config.API_TOKEN.slice(-6) : "未设置") + "\n\n" +
         "是否要修改配置？"
     );
     
@@ -163,7 +164,7 @@ if (!ENV) {
 
 // ====== 版本与配置 ======
 var VERSION_INFO = {
-    LOCAL_VERSION: "1.2.1",
+    LOCAL_VERSION: "1.3.0",
     REMOTE_VERSION_URL: "https://raw.githubusercontent.com/RewLight/foreground-monitor/refs/heads/autoxjs/VERSION",
     UPDATE_PAGE_URL: "https://github.com/RewLight/foreground-monitor/tree/autoxjs",
     DO_CHECK_UPDATE: true
@@ -191,6 +192,200 @@ try {
 var counters = { checked: 0, success: 0, failed: 0 };
 var lastState = { appName: "", lastUploadTime: 0 };
 var appNameCache = {};
+
+// ====== 通知管理 ======
+var NOTIFICATION_ID = 1001;
+var notificationManager = null;
+var startTime = new Date().getTime();
+
+// 添加广播接收器相关常量 - 使用完整包名
+var PACKAGE_NAME = "com.rewlight.fmc.android";  // 应用包名
+var EXIT_ACTION = PACKAGE_NAME + ".EXIT_ACTION";
+var exitReceiver = null;
+
+function createNotificationChannel() {
+    if (device.sdkInt >= 26) {
+        try {
+            var channelId = "status_monitor";
+            var channelName = "状态监控";
+            var importance = android.app.NotificationManager.IMPORTANCE_LOW;
+            
+            var channel = new android.app.NotificationChannel(channelId, channelName, importance);
+            channel.setDescription("显示状态监控运行信息");
+            channel.enableLights(false);
+            channel.enableVibration(false);
+            channel.setSound(null, null);
+            
+            var manager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            manager.createNotificationChannel(channel);
+        } catch (e) {
+            console.error("创建通知渠道失败:", e);
+        }
+    }
+}
+
+// 注册退出广播接收器
+function registerExitReceiver() {
+    try {
+        exitReceiver = new android.content.BroadcastReceiver({
+            onReceive: function(context, intent) {
+                if (intent.getAction() === EXIT_ACTION) {
+                    toast("停止状态监控");
+                    threads.start(function() {
+                        sleep(100);
+                        exit();
+                    });
+                }
+            }
+        });
+        
+        var filter = new android.content.IntentFilter(EXIT_ACTION);
+        
+        // Android 12+ 需要明确指定 RECEIVER_NOT_EXPORTED 标志
+        if (device.sdkInt >= 31) {
+            // 对于 Android 12+，指定接收器为非导出（应用内部使用）
+            context.registerReceiver(
+                exitReceiver, 
+                filter, 
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            );
+        } else {
+            // 对于 Android 11 及以下版本，使用旧方法
+            context.registerReceiver(exitReceiver, filter);
+        }
+    } catch (e) {
+        console.error("注册广播接收器失败:", e);
+        // 降级处理：如果无法注册广播接收器，则不使用退出按钮
+        console.log("将使用无退出按钮的通知");
+    }
+}
+
+
+// 注销广播接收器
+function unregisterExitReceiver() {
+    try {
+        if (exitReceiver) {
+            context.unregisterReceiver(exitReceiver);
+            exitReceiver = null;
+        }
+    } catch (e) {
+        console.error("注销广播接收器失败:", e);
+    }
+}
+
+function showNotification(title, content) {
+    try {
+        createNotificationChannel();
+        
+        var builder;
+        if (device.sdkInt >= 26) {
+            builder = new android.app.Notification.Builder(context, "status_monitor");
+        } else {
+            builder = new android.app.Notification.Builder(context);
+        }
+        
+        // 创建点击通知时的意图 - 打开主应用
+        var launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (launchIntent == null) {
+            launchIntent = new android.content.Intent();
+            launchIntent.setPackage(context.getPackageName());
+            launchIntent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
+        
+        var pendingIntentFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+        if (device.sdkInt >= 31) {
+            pendingIntentFlags |= android.app.PendingIntent.FLAG_IMMUTABLE;
+        }
+        
+        var pendingIntent = android.app.PendingIntent.getActivity(
+            context, 
+            0, 
+            launchIntent, 
+            pendingIntentFlags
+        );
+        
+        builder.setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setOngoing(true)  // 设置为常驻通知
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(false);
+        
+        // 只有在广播接收器注册成功的情况下才添加退出按钮
+        if (exitReceiver != null && device.sdkInt >= 16) {
+            try {
+                // 创建退出按钮的意图
+                var exitIntent = new android.content.Intent(EXIT_ACTION);
+                exitIntent.setPackage(context.getPackageName());
+                
+                var exitPendingIntent = android.app.PendingIntent.getBroadcast(
+                    context,
+                    1,
+                    exitIntent,
+                    pendingIntentFlags
+                );
+                
+                builder.addAction(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    "退出",
+                    exitPendingIntent
+                );
+            } catch (e) {
+                console.error("添加退出按钮失败:", e);
+            }
+            
+            builder.setPriority(android.app.Notification.PRIORITY_LOW);
+        }
+        
+        // 对于 Android 7.0+ 使用更现代的样式
+        if (device.sdkInt >= 24) {
+            builder.setStyle(new android.app.Notification.BigTextStyle()
+                .bigText(content));
+        }
+        
+        var notification = builder.build();
+        
+        if (!notificationManager) {
+            notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        }
+        
+        notificationManager.notify(NOTIFICATION_ID, notification);
+    } catch (e) {
+        console.error("显示通知失败:", e);
+    }
+}
+
+function updateNotification() {
+    var runTime = Math.floor((new Date().getTime() - startTime) / 1000);
+    var hours = Math.floor(runTime / 3600);
+    var minutes = Math.floor((runTime % 3600) / 60);
+    var seconds = runTime % 60;
+    
+    var timeStr = "";
+    if (hours > 0) {
+        timeStr = hours + "小时" + minutes + "分钟";
+    } else if (minutes > 0) {
+        timeStr = minutes + "分钟" + seconds + "秒";
+    } else {
+        timeStr = seconds + "秒";
+    }
+    
+    var content = "运行时间: " + timeStr + " | " +
+                  "检测: " + counters.checked + "次 | " +
+                  "成功: " + counters.success + "次";
+    
+    showNotification("FMCv1 运行中", content);
+}
+
+function cancelNotification() {
+    try {
+        if (notificationManager) {
+            notificationManager.cancel(NOTIFICATION_ID);
+        }
+    } catch (e) {
+        console.error("取消通知失败:", e);
+    }
+}
 
 // ====== 工具函数 ======
 
@@ -253,7 +448,7 @@ function checkShizukuStatus() {
 
 function enableAccessibilityViaShizuku() {
     shizuku.openAccessibility();
-    sleep(5000);
+    sleep(3000);
 }
 
 // ====== 媒体检测 ======
@@ -388,7 +583,7 @@ function initialize() {
 
     checkForUpdates();
 
-    if (SHIZUKU_ALIVE && auto.service == null) {
+    if (SHIZUKU_ALIVE) {
         console.log("Shizuku 可用，尝试授权...");
         enableAccessibilityViaShizuku();
     }
@@ -396,6 +591,12 @@ function initialize() {
     if (auto.service == null) {
         throw new Error("无障碍服务未授予，无法运行脚本");
     }
+
+    // 注册退出广播接收器
+    registerExitReceiver();
+
+    // 显示初始通知
+    showNotification("FMCv1 运行中", "正在启动...");
 
     console.log("✅ 状态监听器启动完成");
     console.log("📋 当前配置:");
@@ -405,6 +606,8 @@ function initialize() {
 }
 
 function main() {
+    var notificationUpdateCounter = 0;
+    
     while (true) {
         try {
             counters.checked++;
@@ -435,12 +638,26 @@ function main() {
                 lastState.lastUploadTime = now;
             }
 
+            notificationUpdateCounter++;
+            if (notificationUpdateCounter >= 5) {
+                updateNotification();
+                notificationUpdateCounter = 0;
+            }
+
         } catch (e) {
             console.error("主循环异常:", e);
         }
         sleep(CONFIG.CHECK_INTERVAL);
     }
 }
+
+// ====== 退出处理 ======
+
+events.on("exit", function() {
+    console.log("脚本退出，清理资源...");
+    cancelNotification();
+    unregisterExitReceiver();
+});
 
 // ====== 启动入口 ======
 
@@ -450,5 +667,6 @@ try {
 } catch (e) {
     toast("启动失败: " + e.message);
     console.error("❌ 启动失败:", e);
+    cancelNotification();
     exit();
 }
