@@ -163,15 +163,15 @@ if (!ENV) {
 
 // ====== 版本与配置 ======
 var VERSION_INFO = {
-    LOCAL_VERSION: "1.2.0",
+    LOCAL_VERSION: "1.2.1",
     REMOTE_VERSION_URL: "https://raw.githubusercontent.com/RewLight/foreground-monitor/refs/heads/autoxjs/VERSION",
     UPDATE_PAGE_URL: "https://github.com/RewLight/foreground-monitor/tree/autoxjs",
     DO_CHECK_UPDATE: true
 };
 
 var CONFIG = {
-    CHECK_INTERVAL: 2000, // 每次检测间隔(ms)
-    FORCE_UPLOAD_INTERVAL: 10000, // 强制上传时间(ms)，即使未变化
+    CHECK_INTERVAL: 7000, // 每次检测间隔(ms)
+    FORCE_UPLOAD_INTERVAL: 15000, // 强制上传时间(ms)，即使未变化
     MEDIA_PRIORITY: [
         "tv.danmaku.bilibilihd",
         "tv.danmaku.bilibili",
