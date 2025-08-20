@@ -2,40 +2,168 @@
 // AutoX.js 状态上传客户端
 // =============================
 
+// ====== 配置管理 ======
+var CONFIG_FILE = files.join(files.getSdcardPath(), "autoxjs_status_config.json");
 
-
-
-
-
-
-
-
-
-// ⚠️ 从这里开始修改哦！
-var ENV = {
+// 默认配置
+var DEFAULT_ENV = {
     INGEST_URL: "Example##https://why.so.serious/api/ingest",
     API_TOKEN: "Example##A_Dissatisfaction_To_The_World",
     MACHINE_ID: "Example##leijun_yu7csn"
-};
-// ⚠️ 你要修改的到此结束！
+}
 
+// 加载配置
+function loadConfig() {
+    try {
+        if (files.exists(CONFIG_FILE)) {
+            var content = files.read(CONFIG_FILE);
+            return JSON.parse(content);
+        }
+    } catch (e) {
+        console.error("加载配置失败:", e);
+    }
+    return DEFAULT_ENV;
+}
 
+// 保存配置
+function saveConfig(config) {
+    try {
+        files.write(CONFIG_FILE, JSON.stringify(config, null, 2));
+        return true;
+    } catch (e) {
+        console.error("保存配置失败:", e);
+        return false;
+    }
+}
 
+// 验证配置
+function validateConfig(config) {
+    // 检查是否为空
+    if (!config.INGEST_URL || !config.API_TOKEN || !config.MACHINE_ID) {
+        return { valid: false, message: "请填写完整的配置信息" };
+    }
+    
+    // 检查是否包含示例值
+    if (config.INGEST_URL.startsWith("Example##") || 
+        config.API_TOKEN.startsWith("Example##") || 
+        config.MACHINE_ID.startsWith("Example##")) {
+        return { 
+            valid: false, 
+            message: "配置错误：请替换所有以 'Example##' 开头的示例值为实际配置" 
+        };
+    }
+    
+    return { valid: true };
+}
 
+// 显示配置对话框
+function showConfigDialog(currentConfig) {
+    var newConfig = null;
+    var dialog = dialogs.build({
+        title: "配置设置",
+        positive: "保存",
+        negative: "保留当前配置",
+        neutral: "退出",
+        autoDismiss: false,
+        customView: 
+            <vertical padding="16">
+                <text text="上传地址 (INGEST_URL):" textColor="#666666" textSize="14sp"/>
+                <input id="url" text={currentConfig.INGEST_URL} singleLine="true" marginBottom="8"/>
+                
+                <text text="API Token:" textColor="#666666" textSize="14sp"/>
+                <input id="token" text={currentConfig.API_TOKEN} singleLine="true" marginBottom="8"/>
+                
+                <text text="设备ID (MACHINE_ID):" textColor="#666666" textSize="14sp"/>
+                <input id="machine" text={currentConfig.MACHINE_ID} singleLine="true"/>
+                
+                <text text="注意：不要使用以 'Example##' 开头的示例值" textColor="#ff0000" textSize="12sp" marginTop="8"/>
+            </vertical>
+    }).on("positive", function(dialog) {
+        newConfig = {
+            INGEST_URL: dialog.getCustomView().url.text(),
+            API_TOKEN: dialog.getCustomView().token.text(),
+            MACHINE_ID: dialog.getCustomView().machine.text()
+        };
+        
+        // 验证配置
+        var validation = validateConfig(newConfig);
+        if (!validation.valid) {
+            toast(validation.message);
+            return;
+        }
+        
+        if (saveConfig(newConfig)) {
+            toast("配置已保存");
+            dialog.dismiss();
+        } else {
+            toast("保存配置失败");
+        }
+    }).on("negative", function(dialog) {
+        newConfig = currentConfig;
+        dialog.dismiss();
+    }).on("neutral", function(dialog) {
+        dialog.dismiss();
+        exit();
+    }).show();
+    
+    // 等待对话框关闭
+    while (dialog.isShowing()) {
+        sleep(100);
+    }
+    
+    return newConfig;
+}
 
+// 初始化配置
+function initializeConfig() {
+    var config = loadConfig();
+    
+    // 验证当前配置
+    var validation = validateConfig(config);
+    
+    // 显示当前配置状态
+    var configStatus = validation.valid ? "✅ 配置有效" : "❌ " + validation.message;
+    
+    // 询问是否修改配置
+    var shouldModify = dialogs.confirm(
+        "配置管理", 
+        "当前配置状态: " + configStatus + "\n\n" +
+        "设备ID: " + config.MACHINE_ID + "\n" +
+        "上传地址: " + config.INGEST_URL + "\n" +
+        "API Token: " + (config.API_TOKEN ? "***" + config.API_TOKEN.slice(-6) : "未设置") + "\n" +
+        "是否要修改配置？"
+    );
+    
+    if (shouldModify || !validation.valid) {
+        config = showConfigDialog(config);
+        if (!config) {
+            // 用户选择退出
+            return null;
+        }
+        
+        // 再次验证配置
+        validation = validateConfig(config);
+        if (!validation.valid) {
+            dialogs.alert("配置错误", validation.message + "\n\n脚本将退出。");
+            return null;
+        }
+    }
+    
+    return config;
+}
 
+// 初始化环境变量
+var ENV = initializeConfig();
 
-
-
-
-
-
-
-
+// 如果配置无效或用户取消，退出脚本
+if (!ENV) {
+    toast("配置未完成，脚本退出");
+    exit();
+}
 
 // ====== 版本与配置 ======
 var VERSION_INFO = {
-    LOCAL_VERSION: "1.1.1",
+    LOCAL_VERSION: "1.2.0",
     REMOTE_VERSION_URL: "https://raw.githubusercontent.com/RewLight/foreground-monitor/refs/heads/autoxjs/VERSION",
     UPDATE_PAGE_URL: "https://github.com/RewLight/foreground-monitor/tree/autoxjs",
     DO_CHECK_UPDATE: true
@@ -124,12 +252,8 @@ function checkShizukuStatus() {
 }
 
 function enableAccessibilityViaShizuku() {
-    if (SHIZUKU_ALIVE && auto.service == null) {
-        try {
-            shizuku.openAccessibility();
-            sleep(3000);
-        } catch (e) {}
-    }
+    shizuku.openAccessibility();
+    sleep(5000);
 }
 
 // ====== 媒体检测 ======
@@ -156,7 +280,7 @@ function parseMediaSessions() {
             if (!pkgMatch) continue;
             var pkg = pkgMatch[1];
 
-            var stateMatch = block.match(/state=PlaybackState\s*\{state=(\w+)KATEX_INLINE_OPEN/);
+            var stateMatch = block.match(/state=PlaybackState\s*\{state=(\w+)/);
             var state = stateMatch ? stateMatch[1] : null;
 
             var descMatch = block.match(/metadata:[\s\S]*?description=(.*?)(, null|\n|$)/);
@@ -256,13 +380,15 @@ function uploadStatus(payload) {
 // ====== 初始化 & 主循环 ======
 
 function initialize() {
-    if (!ENV.INGEST_URL || !ENV.API_TOKEN || !ENV.MACHINE_ID) {
-        throw new Error("请配置完整的 INGEST_URL、API_TOKEN、MACHINE_ID");
+    // 最终验证配置
+    var validation = validateConfig(ENV);
+    if (!validation.valid) {
+        throw new Error(validation.message);
     }
 
     checkForUpdates();
 
-    if (SHIZUKU_ALIVE) {
+    if (SHIZUKU_ALIVE && auto.service == null) {
         console.log("Shizuku 可用，尝试授权...");
         enableAccessibilityViaShizuku();
     }
@@ -272,6 +398,10 @@ function initialize() {
     }
 
     console.log("✅ 状态监听器启动完成");
+    console.log("📋 当前配置:");
+    console.log("  - 设备ID:", ENV.MACHINE_ID);
+    console.log("  - 上传地址:", ENV.INGEST_URL);
+    console.log("  - API Token:", "***" + ENV.API_TOKEN.slice(-6));
 }
 
 function main() {
