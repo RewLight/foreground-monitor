@@ -61,7 +61,6 @@ function showConfigDialog(currentConfig) {
     var newConfig = null;
     var dialog = dialogs.build({
         title: "配置设置",
-        content: "请输入配置信息",
         positive: "保存并启动",
         negative: "退出",
         neutral: "使用当前配置",
@@ -164,7 +163,7 @@ if (!ENV) {
 
 // ====== 版本与配置 ======
 var VERSION_INFO = {
-    LOCAL_VERSION: "1.3.0",
+    LOCAL_VERSION: "1.4.0",
     REMOTE_VERSION_URL: "https://raw.githubusercontent.com/RewLight/foreground-monitor/refs/heads/autoxjs/VERSION",
     UPDATE_PAGE_URL: "https://github.com/RewLight/foreground-monitor/tree/autoxjs",
     DO_CHECK_UPDATE: true
@@ -173,6 +172,7 @@ var VERSION_INFO = {
 var CONFIG = {
     CHECK_INTERVAL: 7000, // 每次检测间隔(ms)
     FORCE_UPLOAD_INTERVAL: 15000, // 强制上传时间(ms)，即使未变化
+    MANUAL_MODE_DURATION: 5 * 60 * 1000, // 手动模式持续时间(5分钟)
     MEDIA_PRIORITY: [
         "tv.danmaku.bilibilihd",
         "tv.danmaku.bilibili",
@@ -193,15 +193,28 @@ var counters = { checked: 0, success: 0, failed: 0 };
 var lastState = { appName: "", lastUploadTime: 0 };
 var appNameCache = {};
 
+// ====== 手动模式状态管理 ======
+var manualMode = {
+    active: false,
+    text: "",
+    startTime: 0,
+    endTime: 0
+};
+
 // ====== 通知管理 ======
 var NOTIFICATION_ID = 1001;
+var INPUT_NOTIFICATION_ID = 1002;
 var notificationManager = null;
 var startTime = new Date().getTime();
 
 // 添加广播接收器相关常量 - 使用完整包名
 var PACKAGE_NAME = "com.rewlight.fmc.android";  // 应用包名
 var EXIT_ACTION = PACKAGE_NAME + ".EXIT_ACTION";
+var MANUAL_UPDATE_ACTION = PACKAGE_NAME + ".MANUAL_UPDATE_ACTION";
+var INPUT_SUBMIT_ACTION = PACKAGE_NAME + ".INPUT_SUBMIT_ACTION";
 var exitReceiver = null;
+var manualUpdateReceiver = null;
+var inputReceiver = null;
 
 function createNotificationChannel() {
     if (device.sdkInt >= 26) {
@@ -218,15 +231,29 @@ function createNotificationChannel() {
             
             var manager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
             manager.createNotificationChannel(channel);
+            
+            // 创建输入通知渠道
+            var inputChannelId = "input_channel";
+            var inputChannelName = "输入通知";
+            var inputImportance = android.app.NotificationManager.IMPORTANCE_HIGH;
+            
+            var inputChannel = new android.app.NotificationChannel(inputChannelId, inputChannelName, inputImportance);
+            inputChannel.setDescription("用于手动输入的通知");
+            inputChannel.enableLights(false);
+            inputChannel.enableVibration(false);
+            inputChannel.setSound(null, null);
+            
+            manager.createNotificationChannel(inputChannel);
         } catch (e) {
             console.error("创建通知渠道失败:", e);
         }
     }
 }
 
-// 注册退出广播接收器
-function registerExitReceiver() {
+// 注册所有广播接收器
+function registerBroadcastReceivers() {
     try {
+        // 退出接收器
         exitReceiver = new android.content.BroadcastReceiver({
             onReceive: function(context, intent) {
                 if (intent.getAction() === EXIT_ACTION) {
@@ -239,37 +266,226 @@ function registerExitReceiver() {
             }
         });
         
-        var filter = new android.content.IntentFilter(EXIT_ACTION);
+        // 手动更新接收器
+        manualUpdateReceiver = new android.content.BroadcastReceiver({
+            onReceive: function(context, intent) {
+                if (intent.getAction() === MANUAL_UPDATE_ACTION) {
+                    showInputNotification();
+                }
+            }
+        });
+        
+        // 输入提交接收器
+        inputReceiver = new android.content.BroadcastReceiver({
+            onReceive: function(context, intent) {
+                try {
+                    console.log("收到广播:", intent.getAction());
+                    
+                    if (intent.getAction() === INPUT_SUBMIT_ACTION) {
+                        // 从 RemoteInput 获取输入文本
+                        var bundle = android.app.RemoteInput.getResultsFromIntent(intent);
+                        var inputText = null;
+                        
+                        if (bundle) {
+                            inputText = bundle.getCharSequence("input_text");
+                            if (inputText) {
+                                inputText = inputText.toString();
+                            }
+                        }
+                        
+                        console.log("提取的输入文本:", inputText);
+                        
+                        if (inputText && inputText.trim()) {
+                            activateManualMode(inputText.trim());
+                            cancelInputNotification();
+                            toast("手动模式已激活: " + inputText);
+                        } else {
+                            toast("输入内容为空");
+                            // 保持输入通知显示
+                        }
+                    } else if (intent.getAction() === "cancel_input") {
+                        cancelInputNotification();
+                        toast("已取消手动输入");
+                    }
+                } catch (e) {
+                    console.error("处理输入广播时出错:", e);
+                    toast("处理输入时出错: " + e.message);
+                    cancelInputNotification();
+                }
+            }
+        });
+        
+        var exitFilter = new android.content.IntentFilter(EXIT_ACTION);
+        var manualFilter = new android.content.IntentFilter(MANUAL_UPDATE_ACTION);
+        var inputFilter = new android.content.IntentFilter(INPUT_SUBMIT_ACTION);
+        var cancelFilter = new android.content.IntentFilter("cancel_input");
         
         // Android 12+ 需要明确指定 RECEIVER_NOT_EXPORTED 标志
         if (device.sdkInt >= 31) {
-            // 对于 Android 12+，指定接收器为非导出（应用内部使用）
-            context.registerReceiver(
-                exitReceiver, 
-                filter, 
-                android.content.Context.RECEIVER_NOT_EXPORTED
-            );
+            context.registerReceiver(exitReceiver, exitFilter, android.content.Context.RECEIVER_NOT_EXPORTED);
+            context.registerReceiver(manualUpdateReceiver, manualFilter, android.content.Context.RECEIVER_NOT_EXPORTED);
+            context.registerReceiver(inputReceiver, inputFilter, android.content.Context.RECEIVER_NOT_EXPORTED);
+            context.registerReceiver(inputReceiver, cancelFilter, android.content.Context.RECEIVER_NOT_EXPORTED);
         } else {
-            // 对于 Android 11 及以下版本，使用旧方法
-            context.registerReceiver(exitReceiver, filter);
+            context.registerReceiver(exitReceiver, exitFilter);
+            context.registerReceiver(manualUpdateReceiver, manualFilter);
+            context.registerReceiver(inputReceiver, inputFilter);
+            context.registerReceiver(inputReceiver, cancelFilter);
         }
     } catch (e) {
         console.error("注册广播接收器失败:", e);
-        // 降级处理：如果无法注册广播接收器，则不使用退出按钮
-        console.log("将使用无退出按钮的通知");
     }
 }
 
-
 // 注销广播接收器
-function unregisterExitReceiver() {
+function unregisterBroadcastReceivers() {
     try {
         if (exitReceiver) {
             context.unregisterReceiver(exitReceiver);
             exitReceiver = null;
         }
+        if (manualUpdateReceiver) {
+            context.unregisterReceiver(manualUpdateReceiver);
+            manualUpdateReceiver = null;
+        }
+        if (inputReceiver) {
+            context.unregisterReceiver(inputReceiver);
+            inputReceiver = null;
+        }
     } catch (e) {
         console.error("注销广播接收器失败:", e);
+    }
+}
+
+// 激活手动模式
+function activateManualMode(text) {
+    var now = Date.now();
+    manualMode.active = true;
+    manualMode.text = text;
+    manualMode.startTime = now;
+    manualMode.endTime = now + CONFIG.MANUAL_MODE_DURATION;
+    
+    console.log("手动模式激活:", text, "持续到:", new Date(manualMode.endTime).toLocaleString());
+}
+
+// 检查手动模式是否仍然有效
+function checkManualMode() {
+    if (manualMode.active && Date.now() > manualMode.endTime) {
+        manualMode.active = false;
+        manualMode.text = "";
+        console.log("手动模式已结束");
+        toast("手动模式已结束，恢复自动检测");
+    }
+}
+
+// 显示输入通知
+function showInputNotification() {
+    try {
+        // 先隐藏原始通知
+        //if (notificationManager) {
+        //    notificationManager.cancel(NOTIFICATION_ID);
+        //}
+        
+        createNotificationChannel();
+        
+        var builder;
+        if (device.sdkInt >= 26) {
+            builder = new android.app.Notification.Builder(context, "input_channel");
+        } else {
+            builder = new android.app.Notification.Builder(context);
+        }
+        
+        // 创建远程输入
+        var remoteInput = new android.app.RemoteInput.Builder("input_text")
+            .setLabel("输入要上传的内容")
+            .build();
+        
+        // 创建提交意图
+        var submitIntent = new android.content.Intent(INPUT_SUBMIT_ACTION);
+        submitIntent.setPackage(context.getPackageName());
+        
+        var pendingIntentFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+        if (device.sdkInt >= 31) {
+            pendingIntentFlags |= android.app.PendingIntent.FLAG_MUTABLE;
+        }
+        
+        var submitPendingIntent = android.app.PendingIntent.getBroadcast(
+            context,
+            2,
+            submitIntent,
+            pendingIntentFlags
+        );
+        
+        // 创建带输入框的操作
+        var action = new android.app.Notification.Action.Builder(
+            android.R.drawable.ic_menu_edit,
+            "提交",
+            submitPendingIntent
+        ).addRemoteInput(remoteInput).build();
+        
+        // 添加取消按钮
+        var cancelIntent = new android.content.Intent();
+        cancelIntent.setAction("cancel_input");
+        cancelIntent.setPackage(context.getPackageName());
+        
+        var cancelPendingIntent = android.app.PendingIntent.getBroadcast(
+            context,
+            3,
+            cancelIntent,
+            pendingIntentFlags
+        );
+        
+        var cancelAction = new android.app.Notification.Action.Builder(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            "取消",
+            cancelPendingIntent
+        ).build();
+        
+        builder.setContentTitle("手动更新模式")
+            .setContentText("请输入要上传的内容（5分钟内有效）")
+            .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .addAction(action)
+            .addAction(cancelAction)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setPriority(android.app.Notification.PRIORITY_HIGH);
+        
+        var notification = builder.build();
+        
+        if (!notificationManager) {
+            notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        }
+        
+        notificationManager.notify(INPUT_NOTIFICATION_ID, notification);
+        
+    } catch (e) {
+        console.error("显示输入通知失败:", e);
+        // 降级处理：使用对话框
+        threads.start(function() {
+            try {
+                var input = dialogs.rawInput("手动更新", "请输入要上传的内容：");
+                if (input && input.trim()) {
+                    activateManualMode(input.trim());
+                    toast("手动模式已激活: " + input);
+                }
+            } catch (dialogError) {
+                console.error("对话框降级处理失败:", dialogError);
+                toast("无法显示输入界面");
+            }
+        });
+    }
+}
+
+// 取消输入通知
+function cancelInputNotification() {
+    try {
+        if (notificationManager) {
+            notificationManager.cancel(INPUT_NOTIFICATION_ID);
+        }
+        // 恢复显示原始通知
+        updateNotification();
+    } catch (e) {
+        console.error("取消输入通知失败:", e);
     }
 }
 
@@ -311,27 +527,47 @@ function showNotification(title, content) {
             .setContentIntent(pendingIntent)
             .setAutoCancel(false);
         
-        // 只有在广播接收器注册成功的情况下才添加退出按钮
-        if (exitReceiver != null && device.sdkInt >= 16) {
+        // 添加手动更新按钮
+        if (device.sdkInt >= 16) {
             try {
-                // 创建退出按钮的意图
-                var exitIntent = new android.content.Intent(EXIT_ACTION);
-                exitIntent.setPackage(context.getPackageName());
+                // 创建手动更新按钮的意图
+                var manualIntent = new android.content.Intent(MANUAL_UPDATE_ACTION);
+                manualIntent.setPackage(context.getPackageName());
                 
-                var exitPendingIntent = android.app.PendingIntent.getBroadcast(
+                var manualPendingIntent = android.app.PendingIntent.getBroadcast(
                     context,
                     1,
-                    exitIntent,
+                    manualIntent,
                     pendingIntentFlags
                 );
                 
                 builder.addAction(
-                    android.R.drawable.ic_menu_close_clear_cancel,
-                    "退出",
-                    exitPendingIntent
+                    android.R.drawable.ic_menu_edit,
+                    "手动更新",
+                    manualPendingIntent
                 );
+                
+                // 只有在广播接收器注册成功的情况下才添加退出按钮
+                if (exitReceiver != null) {
+                    // 创建退出按钮的意图
+                    var exitIntent = new android.content.Intent(EXIT_ACTION);
+                    exitIntent.setPackage(context.getPackageName());
+                    
+                    var exitPendingIntent = android.app.PendingIntent.getBroadcast(
+                        context,
+                        2,
+                        exitIntent,
+                        pendingIntentFlags
+                    );
+                    
+                    builder.addAction(
+                        android.R.drawable.ic_menu_close_clear_cancel,
+                        "退出",
+                        exitPendingIntent
+                    );
+                }
             } catch (e) {
-                console.error("添加退出按钮失败:", e);
+                console.error("添加通知按钮失败:", e);
             }
             
             builder.setPriority(android.app.Notification.PRIORITY_LOW);
@@ -370,9 +606,15 @@ function updateNotification() {
         timeStr = seconds + "秒";
     }
     
+    var modeStatus = "";
+    if (manualMode.active) {
+        var remainingTime = Math.ceil((manualMode.endTime - Date.now()) / 1000);
+        modeStatus = " | 手动模式: " + Math.max(0, remainingTime) + "秒";
+    }
+    
     var content = "运行时间: " + timeStr + " | " +
                   "检测: " + counters.checked + "次 | " +
-                  "成功: " + counters.success + "次";
+                  "成功: " + counters.success + "次" + modeStatus;
     
     showNotification("FMCv1 运行中", content);
 }
@@ -381,6 +623,7 @@ function cancelNotification() {
     try {
         if (notificationManager) {
             notificationManager.cancel(NOTIFICATION_ID);
+            notificationManager.cancel(INPUT_NOTIFICATION_ID);
         }
     } catch (e) {
         console.error("取消通知失败:", e);
@@ -592,14 +835,14 @@ function initialize() {
         throw new Error("无障碍服务未授予，无法运行脚本");
     }
 
-    // 注册退出广播接收器
-    registerExitReceiver();
+    // 注册广播接收器
+    registerBroadcastReceivers();
 
     // 显示初始通知
     showNotification("FMCv1 运行中", "正在启动...");
 
     console.log("✅ 状态监听器启动完成");
-    console.log("📋 当前配置:");
+    console.log("🔋 当前配置:");
     console.log("  - 设备ID:", ENV.MACHINE_ID);
     console.log("  - 上传地址:", ENV.INGEST_URL);
     console.log("  - API Token:", "***" + ENV.API_TOKEN.slice(-6));
@@ -613,17 +856,28 @@ function main() {
             counters.checked++;
             SHIZUKU_ALIVE = checkShizukuStatus();
 
-            var sessions = parseMediaSessions();
-            var activeMedia = selectActiveMedia(sessions);
+            // 检查手动模式状态
+            checkManualMode();
 
             var appLabel, appPkg;
-            if (activeMedia) {
-                appLabel = formatMediaTitle(activeMedia);
-                appPkg = activeMedia.package;
+            
+            // 如果手动模式激活，使用手动输入的文本
+            if (manualMode.active) {
+                appLabel = "📝手动: " + manualMode.text;
+                appPkg = "manual_input";
             } else {
-                var fg = getForegroundApp();
-                appLabel = fg.label;
-                appPkg = fg.package;
+                // 正常检测逻辑
+                var sessions = parseMediaSessions();
+                var activeMedia = selectActiveMedia(sessions);
+
+                if (activeMedia) {
+                    appLabel = formatMediaTitle(activeMedia);
+                    appPkg = activeMedia.package;
+                } else {
+                    var fg = getForegroundApp();
+                    appLabel = fg.label;
+                    appPkg = fg.package;
+                }
             }
 
             var now = Date.now();
@@ -656,7 +910,7 @@ function main() {
 events.on("exit", function() {
     console.log("脚本退出，清理资源...");
     cancelNotification();
-    unregisterExitReceiver();
+    unregisterBroadcastReceivers();
 });
 
 // ====== 启动入口 ======
