@@ -161,9 +161,9 @@ export default defineComponent({
 
           if (data.length > 0) {
             const appData = data[0]
-            if (appName.value !== appData.app) {
-              appName.value = appData.app
-              addHistory(appData.app)
+            if (appName.value !== appData.window_title) {
+              appName.value = appData.window_title
+              addHistory(appData.window_title)
 
               // 更新状态信息
               status.value.lastUpdateTimestamp = new Date(appData.access_time).getTime() / 1000
