@@ -1,4 +1,4 @@
-# foreground-monitor client (Autox.js version)
+# foreground-monitor client (AutoX.js version)
 
 > AI 太好用了你们知道吗
 
@@ -22,12 +22,7 @@
 10. !! **务必给 FMCv1 设置忽略电量优化等**（请自行查找相关操作）
 
 ## 参考
-[BlueYeeeee/SpyYourDesktop](https://github.com/BlueYeeeee/SpyYourDesktop)
-
-↑ API 接口跟这个对齐的
+服务器配置和 API 接口，请参阅：[BlueYeeeee/SpyYourDesktop: API.md](https://github.com/BlueYeeeee/SpyYourDesktop/blob/main/Web(new)/API.md)
 
 ## 许可证
 并非许可
-
-
-<h6> 还有一个配置特麻烦但是我自己在用的分支 wless-adb 多了个媒体上报的功能 有兴趣可以看一下 ;)</h6>
