@@ -16,16 +16,17 @@
       <v-toolbar-title>春茶在干什么</v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-chip
-        color="#2c2c3c"
-        class="ma-2"
-        small
-        height="56"
-        style="padding-left:16px; padding-right:16px;"
-      >
-        <v-avatar left size="12" :color="isAlive ? 'green' : 'red'"></v-avatar>
-        <span class="ms-2">{{ isAlive ? '哈气中' : '死了' }}</span>
-      </v-chip>
+      <template #append>
+        <v-chip
+          class="ma-2"
+          small
+          height="56"
+          style="padding-left:16px; padding-right:16px;"
+        >
+          <v-avatar left size="12" :color="isAlive ? 'green' : 'red'"></v-avatar>
+          <span class="ms-2">{{ isAlive ? '哈气中' : '死了' }}</span>
+        </v-chip>
+      </template>
     </v-app-bar>
 
     <v-main>
