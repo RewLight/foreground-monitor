@@ -1,4 +1,5 @@
 <template>
+  <SpeedInsights/>
   <v-app>
     <v-app-bar app>
       <template #prepend>
@@ -107,6 +108,7 @@
 import { defineComponent, ref, onMounted, nextTick, computed, watch } from 'vue'
 import { usePreferredDark } from '@vueuse/core'
 import { useTheme } from 'vuetify'
+import { SpeedInsights } from "@vercel/speed-insights/vue"
 
 interface HistoryItem { time: string; name: string }
 
