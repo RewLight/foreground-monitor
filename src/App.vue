@@ -1,4 +1,4 @@
-widthutoutotemplate>
+<template>
   <SpeedInsights/>
   <v-app>
     <v-app-bar app>
