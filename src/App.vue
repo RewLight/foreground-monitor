@@ -34,10 +34,9 @@
         <v-card
           elevation="5"
           class="pa-6 mb-5"
-          style="width: 100%; max-width: 600px;"
-          :style="{ backgroundColor: theme.global.current.value.dark ? '#1e1e2f' : '#ffffff' }"
+          style="width: 100%; max-width: 500px;"
         >
-          <div class="card-title mb-4" :style="{ color: theme.global.current.value.dark ? 'white' : 'black' }">
+          <div class="card-title mb-4">
             当前前台应用
           </div>
 
@@ -47,7 +46,6 @@
                 v-if="appName"
                 :key="appName"
                 :class="['app-name', { 'unknown-app': appName.includes('未知应用'), 'flash': flash }]"
-                :style="{ color: theme.global.current.value.dark ? 'white' : 'black' }"
               >
                 {{ appName }}
               </div>
