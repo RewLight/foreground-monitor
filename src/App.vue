@@ -1,4 +1,4 @@
-<template>
+smalllate>
   <SpeedInsights/>
   <v-app>
     <v-app-bar app>
@@ -20,7 +20,6 @@
       <template #append>
         <v-chip
           class="ma-2"
-          small
           height="56"
           style="padding-left:16px; padding-right:16px;"
         >
@@ -52,7 +51,7 @@
               >
                 {{ appName }}
               </div>
-              <div v-else class="text-subtitle-1" :style="{ color: theme.global.current.value.dark ? 'white' : 'black' }">
+              <div v-else class="text-subtitle-1">
                 正在获取前台应用...
               </div>
             </v-fade-transition>
@@ -70,7 +69,7 @@
           max-height="50vh"
           ref="historyCard"
         >
-          <v-card-title class="text-subtitle-1" :style="{ color: theme.global.current.value.dark ? 'white' : 'black' }">
+          <v-card-title class="text-subtitle-1">
             应用切换历史
           </v-card-title>
           <v-divider></v-divider>
