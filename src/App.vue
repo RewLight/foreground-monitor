@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-app-bar app color="primary">
+    <v-app-bar app>
       <template #prepend>
         <v-btn
           icon
@@ -18,7 +18,7 @@
 
       <v-chip
         color="#2c2c3c"
-        class="ma-2 white--text"
+        class="ma-2"
         small
         height="56"
         style="padding-left:16px; padding-right:16px;"
