@@ -34,7 +34,7 @@
         <v-card
           elevation="5"
           class="pa-6 mb-5"
-          style="width: 100%; max-width: 500px;"
+          style="width: 100%; max-width: 600px;"
         >
           <div class="card-title mb-4">
             当前前台应用
@@ -62,7 +62,7 @@
 
         <v-card
           elevation="3"
-          class="mb-5"
+          class="mb-5 fill-height"
           style="overflow-y: auto; width: 100%; max-width: 600px;"
           max-height="50vh"
           ref="historyCard"
