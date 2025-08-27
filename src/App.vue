@@ -62,7 +62,7 @@
 
         <v-card
           elevation="3"
-          class="mb-5 fill-height"
+          class="mb-5"
           style="overflow-y: auto; width: 100%; max-width: 600px;"
           max-height="50vh"
           ref="historyCard"
