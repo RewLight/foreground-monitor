@@ -13,7 +13,6 @@ export interface MachineStatus {
   window_title: string;
   app: string;
   access_time: string;
-  raw?: Record<string, any>;
 }
 
 // 请求体类型
@@ -22,7 +21,6 @@ export interface IngestRequestBody {
   window_title?: string;
   app?: string;
   event_time?: string;
-  raw?: Record<string, any>;
 }
 
 // 查询参数类型
