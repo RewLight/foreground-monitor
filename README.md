@@ -5,7 +5,7 @@
 
 > AI 太好用了你们知道吗
 
-本项目是使用 Cloudflare Workers 和 KV 对 [BlueYeeeee/SpyYourDesktop](https://github.com/BlueYeeeee/SpyYourDesktop/tree/main/Web(new)) 的无服务器实现。
+本项目是使用 Cloudflare Workers 和 Cloudflare KV 对 [BlueYeeeee/SpyYourDesktop](https://github.com/BlueYeeeee/SpyYourDesktop/tree/main/Web(new)) 的无服务器实现。
 
 ## 部署
 
