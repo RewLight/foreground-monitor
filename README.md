@@ -25,10 +25,10 @@
 	  $ wrangler kv namespace create "DESKTOP_KV"
 	  ```
    2. 根据 API.md 文档写入配置文件（[参考](#参考)）：
-     ```bash
-	   $ wrangler kv key put "config:group-map" "<group-map.json content here>" --binding=DESKTOP_KV --remote
-	   $ wrangler kv key put "config:name-keys" "<name-keys.json content here>" --binding=DESKTOP_KV --remote
-	   ```
+       ```bash
+       $ wrangler kv key put "config:group-map" "<group-map.json content here>" --binding=DESKTOP_KV --remote
+       $ wrangler kv key put "config:name-keys" "<name-keys.json content here>" --binding=DESKTOP_KV --remote
+       ```
 5. 部署 Cloudflare Worker:
    ```bash
    $ npm run deploy
