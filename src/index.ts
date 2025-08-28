@@ -86,7 +86,7 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
 
   try {
     const body: IngestRequestBody = await request.json();
-    const { machine, window_title, app, event_time, raw } = body;
+    const { machine, window_title, app, event_time } = body;
 
     if (!machine) {
       return createErrorResponse('Missing machine ID', 400);
@@ -104,7 +104,6 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
       window_title: window_title || '',
       app: app || '',
       access_time: event_time || new Date().toISOString(),
-      raw: raw || {}
     };
 
     // 保存到 KV (只保留最新状态)
