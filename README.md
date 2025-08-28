@@ -1,6 +1,17 @@
-# foreground-monitor client (AutoX.js version)
+> [!NOTE]
+> 该项目的各部分处于独立分支上。请自行参阅。
+
+# <ins>F</ins>oreground-<ins>M</ins>onitor <ins>C</ins>lient v1 (AutoX.js version)
 
 > AI 太好用了你们知道吗
+
+<!--
+## 特性
+
+当前，FMCv1 支持以下特性：
+> [!CAUTION]
+> TODO
+-->
 
 ## 安装
 
@@ -25,4 +36,4 @@
 服务器配置和 API 接口，请参阅：[BlueYeeeee/SpyYourDesktop: API.md](https://github.com/BlueYeeeee/SpyYourDesktop/blob/main/Web(new)/API.md)
 
 ## 许可证
-并非许可
+并非许可。 All Rights Reserved (at least for now).
