@@ -7,6 +7,15 @@
 
 本项目是使用 Cloudflare Workers 和 Cloudflare KV 对 [BlueYeeeee/SpyYourDesktop](https://github.com/BlueYeeeee/SpyYourDesktop/tree/main/Web(new)) 的无服务器实现。
 
+> [!CAUTION]
+> 当前版本仅对齐SpyYourDesktop的[7ccc19](https://github.com/BlueYeeeee/SpyYourDesktop/commit/7ccc19a1302e778ebbc7a3bc0e0c85fd562e7a87)的功能。
+> 
+> 以下更改敬请注意：
+> 
+> - 不保留历史活动记录
+>   
+> - 暂未添加最新版本的版本相关功能
+
 ## 部署
 
 1. 克隆本分支：
@@ -36,7 +45,7 @@
 6. 请自行验证是否部署成功。对于上报客户端，请查阅 [BlueYeeeee/SpyYourDesktop: README.md](https://github.com/BlueYeeeee/SpyYourDesktop?tab=readme-ov-file#windows%E4%BE%A7%E8%A7%86%E5%A5%B8%E6%95%99%E7%A8%8Bnew).
 
 ## 参考
-服务器配置和API 接口，请参阅：[BlueYeeeee/SpyYourDesktop: API.md](https://github.com/BlueYeeeee/SpyYourDesktop/blob/main/Web(new)/API.md)
+服务器配置和API 接口，请参阅：[BlueYeeeee/SpyYourDesktop: API.md #5ec0cd](https://github.com/BlueYeeeee/SpyYourDesktop/commit/5ec0cd540c45edcab397489d771e8d1300b74b91)
 
 ## 许可证
 并非许可。 All Rights Reserved (at least for now).
