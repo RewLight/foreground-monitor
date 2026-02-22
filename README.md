@@ -36,4 +36,4 @@
 服务器配置和 API 接口，请参阅：[BlueYeeeee/SpyYourDesktop: API.md](https://github.com/BlueYeeeee/SpyYourDesktop/blob/main/Web(new)/API.md)
 
 ## 许可证
-并非许可。 All Rights Reserved (at least for now).
+[WTFPL](LICENSE)
